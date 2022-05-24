@@ -33,3 +33,9 @@ class MultiNormalDistribution(Distribution):
         a = -1/2*torch.log(torch.linalg.det(2*np.pi*sigma))
         b = d.swapaxes(-1, -2)@torch.linalg.inv(sigma)@d/2
         return a-b
+
+    def estimate_parameters(self, n):
+        X = n
+
+        X = self.sample(n)
+        mu = 
