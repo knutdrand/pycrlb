@@ -19,8 +19,8 @@ class NormalDistribution(Distribution):
 
 @dataclass
 class MultiNormalDistribution(Distribution):
-    mu: torch.tensor = torch.tensor(0.)
-    sigma: torch.tensor = torch.tensor(1.)
+    mu: torch.tensor = torch.tensor([0., 1.])
+    sigma: torch.tensor = torch.tensor([[1., 0.], [0., 2.]])
 
     def sample(self, n=1):
         data = np.random.multivariate_normal(self.mu, self.sigma, n)
@@ -29,13 +29,13 @@ class MultiNormalDistribution(Distribution):
 
     def log_likelihood(self, x, mu, sigma):
         d = (x-mu)[..., None]
-        print(x.shape, mu.shape, d.shape, sigma.shape)
         a = -1/2*torch.log(torch.linalg.det(2*np.pi*sigma))
         b = d.swapaxes(-1, -2)@torch.linalg.inv(sigma)@d/2
         return a-b
 
     def estimate_parameters(self, n):
-        X = n
-
-        X = self.sample(n)
-        mu = 
+        X, = self.sample(n)
+        mu = torch.mean(X, axis=0)
+        d = X-mu
+        cov = torch.mean(d[..., None, :]*d[..., None], axis=0)
+        return mu.numpy(), cov.numpy()

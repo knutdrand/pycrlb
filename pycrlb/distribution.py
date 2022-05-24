@@ -32,36 +32,41 @@ class Distribution(ABC):
             if field.type == torch.tensor:
                 setattr(self, field.name, torch.as_tensor(getattr(self, field.name)))
 
+    @property
+    def params(self):
+        return tuple(getattr(self, field.name) for field in dataclasses.fields(self))        
+
     def estimate_fisher_information(self, n=10000000):
         n = n//self.data_size
         x = self.sample(n)
         f = self.get_func(*x)
-        params = tuple(getattr(self, field.name) for field in dataclasses.fields(self))
-        H = torch.autograd.functional.hessian(f, params)
-        dims = [p.numpy().size for p in params]
+        H = torch.autograd.functional.hessian(f, self.params)
+        dims = [p.numpy().size for p in self.params]
         H = np.vstack(
             [np.hstack([r.reshape((a_dim, b_dim)) for r, b_dim in zip(row, dims)])
              for a_dim, row in zip(dims, H)])
         return -np.array(H)
 
+    def _flatten_params(self, params):
+        return np.concatenate([p.ravel() for p in params])
+
     def plot_all_errors(self, color="red", n_params=None, n_iterations=200):
+        params = self._flatten_params(self.params)
         if n_params is None:
-            n_params = sum(len(p) for p in self.params)
+            n_params = params.size
         name = self.__class__.__name__
         I = self.estimate_fisher_information()
         I = I[:n_params, :n_params]
+        print(I)
         all_var = get_var(I)
         n_samples = [200*i for i in range(1, 10)]
-        errors = [self.get_square_errors(n_samples=n, n_iterations=n_iterations, do_plot=False) for n in n_samples]
-        self.get_square_errors(n_samples=n_samples[-1], n_iterations=n_iterations, do_plot=True)
-        print(errors)
+        errors = (self.get_square_errors(n_samples=n, n_iterations=n_iterations, do_plot=False)
+                  for n in n_samples)
+        errors = [self._flatten_params(e) for e in errors]
+        print(np.mean(errors, axis=0))
         fig, axes = plt.subplots((n_params+1)//2, 2)
         if (n_params+1)//2 == 1:
             axes = [axes]
-        if len(self.params) == 1:
-            params = self.params[0]
-        else:
-            params = self.params
         for i, param in enumerate(params[:n_params]):
             var = all_var[i, i]
             ax = axes[i//2][i % 2]
@@ -71,14 +76,12 @@ class Distribution(ABC):
             ax.set_xlabel("n_samples")
 
     def get_square_errors(self, n_samples=1000, n_iterations=1000, do_plot=False):
-        estimates = [self.estimate_parameters(n_samples)
-                     for _ in range(n_iterations)]
-        if len(self.params) == 1:
-            true_params = np.array(self.params[0])
-            estimates = np.array([np.array(row[0]) for row in estimates])
-        else:
-            true_params = np.array(self.params)
-            estimates = np.array(estimates)
+        estimates = zip(*(self.estimate_parameters(n_samples)
+                          for _ in range(n_iterations)))
+        estimates = [np.array(e) for e in estimates]
+        return [((e-np.array(p))**2).sum(axis=0)/n_iterations
+                for e, p in zip(estimates, self.params)]
+        """
         if do_plot:
             for i, param in enumerate(true_params):
                 plt.hist(estimates[:, i])
@@ -88,3 +91,4 @@ class Distribution(ABC):
         print("E", estimates.mean(axis=0))
         print("T", true_params)
         return ((estimates-true_params)**2).sum(axis=0)/n_iterations
+        """
