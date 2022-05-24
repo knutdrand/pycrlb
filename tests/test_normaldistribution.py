@@ -19,6 +19,13 @@ def multi_dist():
 def test_shape(dist):
     info = dist.estimate_fisher_information(10)
     assert info.shape == (2, 2)
+    mu, s = dist.estimate_parameters(10)
+    print(mu, s)
+    assert np.atleast_1d(mu).shape == (1, )
+    assert np.atleast_1d(s).shape == (1, )
+    mu_err, sigma_err = dist.get_square_errors(10, 10)
+    assert np.atleast_1d(mu_err).shape == (1, )
+    assert np.atleast_1d(sigma_err).shape == (1, )
 
 
 def test_multishape(multi_dist):

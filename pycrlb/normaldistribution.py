@@ -16,6 +16,13 @@ class NormalDistribution(Distribution):
         return torch.log(
             1/torch.sqrt(2*np.pi*sigma**2)) - (x-mu)**2/(2*sigma**2)
 
+    def estimate_parameters(self, n):
+        X, = self.sample(n)
+        mu = torch.mean(X, axis=0)
+        d = X-mu
+        s = (d**2).mean()
+        return mu.numpy(), np.sqrt(s.numpy())
+
 
 @dataclass
 class MultiNormalDistribution(Distribution):
