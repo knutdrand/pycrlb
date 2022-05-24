@@ -40,7 +40,9 @@ class Distribution(ABC):
         params = tuple(getattr(self, field.name) for field in dataclasses.fields(self))
         print(params)
         H = torch.autograd.functional.hessian(f, params)
-        H = np.array([[np.array(h) for h in row] for row in H])
+        print([[h.shape for h in row] for row in H])
+        H = np.vstack([np.hstack([r.row) for row in H])
+        # H = np.array([[np.array(h) for h in row] for row in H])
         H = H.reshape(H.shape[-1], -1)
         return -np.array(H)  # (self.mu, self.sigma)))/n
 
